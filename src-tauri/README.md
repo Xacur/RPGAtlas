@@ -48,6 +48,16 @@ npm run package:exe  # rebuilds the standalone RPGAtlas-Desktop.exe at the repo 
 
 # Linux AppImage output: RPGAtlas-x86_64.AppImage in the repository root.
 # The command removes that output and the AppDir before each build, and exits nonzero on errors.
+
+To package a native Linux game from an exported project file:
+
+```sh
+npm run package:game:appimage -- Atlas_Quest.json
+```
+
+This embeds the standalone player, project data, and referenced assets in a separate Tauri window.
+The output is `<Game_Title>-x86_64.AppImage` in the repository root (or use `--out <path>`).
+It reuses the Linux AppImage builder and requires the same Linux prerequisites and network access for missing Tauri packaging tools.
 ```
 
 To refresh the desktop app after adding features, run `npm run package:exe`

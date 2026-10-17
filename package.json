@@ -21,6 +21,7 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:appimage": "node scripts/build-linux-appimage.mjs",
+    "package:game:appimage": "node scripts/package-game-appimage.mjs",
     "package:exe": "node scripts/package-exe.mjs"
   },
   "devDependencies": {

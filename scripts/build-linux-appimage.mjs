@@ -13,9 +13,12 @@ const root = resolve(import.meta.dirname, "..");
 const tauri = join(root, "node_modules", ".bin", "tauri");
 const cache = join(process.env.XDG_CACHE_HOME || join(process.env.HOME || "", ".cache"), "tauri");
 const bundleDir = join(root, "src-tauri", "target", "release", "bundle", "appimage");
-const appDir = join(bundleDir, "RPGAtlas.AppDir");
-const output = join(root, "RPGAtlas-x86_64.AppImage");
-const bundledOutput = join(bundleDir, "RPGAtlas-x86_64.AppImage");
+const appName = process.env.RPGATLAS_APP_NAME || "RPGAtlas";
+const appDir = join(bundleDir, appName + ".AppDir");
+const output = resolve(process.env.RPGATLAS_APPIMAGE_OUT || join(root, appName + "-x86_64.AppImage"));
+const bundledOutput = join(bundleDir, appName + "-x86_64.AppImage");
+const generatedOutput = join(root, appName + "-x86_64.AppImage");
+const configArg = process.env.RPGATLAS_TAURI_CONFIG ? ["--config", process.env.RPGATLAS_TAURI_CONFIG] : [];
 const appBinary = join(appDir, "usr", "bin", "rpgatlas");
 const linuxdeploy = join(cache, "linuxdeploy-x86_64.AppImage");
 const appimagePlugin = join(cache, "linuxdeploy-plugin-appimage.AppImage");
@@ -30,9 +33,13 @@ function completeAppDir() {
 }
 
 function publishOutput() {
-  const candidates = [bundledOutput, ...readdirSync(bundleDir, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".AppImage"))
-    .map((entry) => join(bundleDir, entry.name))];
+  const candidates = [bundledOutput, generatedOutput,
+    ...readdirSync(root, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith("-x86_64.AppImage"))
+      .map((entry) => join(root, entry.name)),
+    ...readdirSync(bundleDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".AppImage"))
+      .map((entry) => join(bundleDir, entry.name))];
   const candidate = candidates.find((file) => existsSync(file) && statSync(file).size > 0);
   if (!candidate) throw new Error("Tauri did not produce an AppImage in " + bundleDir);
   if (candidate !== output) copyFileSync(candidate, output);
@@ -44,7 +51,7 @@ function publishOutput() {
 
 function runTauri() {
   try {
-    execFileSync(tauri, ["build", "--bundles", "appimage"], {
+    execFileSync(tauri, ["build", "--bundles", "appimage", ...configArg], {
       cwd: root,
       stdio: ["inherit", "pipe", "pipe"],
     });
@@ -68,6 +75,7 @@ if (!existsSync(tauri)) throw new Error("Tauri CLI is missing; run npm install f
 rmSync(appDir, { recursive: true, force: true });
 rmSync(output, { force: true });
 rmSync(bundledOutput, { force: true });
+rmSync(generatedOutput, { force: true });
 const recovered = runTauri();
 if (!recovered) {
   console.log("[appimage] wrote " + output);

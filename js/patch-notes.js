@@ -5,6 +5,17 @@
 export const PATCH_NOTES = [
   {
     date: "October 16, 2026",
+    title: "Native Linux game AppImage packaging",
+    summary:
+      "Adds a command-line Linux x86_64 game exporter that embeds the standalone runtime and project assets in a named native Tauri window.",
+    items: [
+      "Use npm run package:game:appimage -- <project.json> to package a playable game without the editor or browser.",
+      "Game exports use their project title, isolated identifier, configured window size, and a separate AppImage output.",
+      "Unresolved asset references now stop packaging with an actionable report.",
+    ],
+  },
+  {
+    date: "October 16, 2026",
     title: "Linux desktop and AppImage packaging",
     summary:
       "Adds the Linux application icon and a fresh, one-command x86_64 AppImage build that works around Arch linuxdeploy stripping incompatibility while preserving other Tauri package targets.",
