@@ -22,6 +22,8 @@
     "tauri:build": "tauri build",
     "tauri:appimage": "node scripts/build-linux-appimage.mjs",
     "package:game:appimage": "node scripts/package-game-appimage.mjs",
+    "electron:poc": "node scripts/build-electron-poc.mjs",
+    "package:electron:game": "node scripts/package-electron-game.mjs",
     "package:exe": "node scripts/package-exe.mjs"
   },
   "devDependencies": {
@@ -31,6 +33,8 @@
     "@tauri-apps/cli": "^2",
     "@types/three": "^0.185.0",
     "@types/ws": "^8.18.1",
+    "electron": "^44.8.0",
+    "electron-builder": "^26.15.3",
     "esbuild": "^0.25.12",
     "eslint": "^9.39.0",
     "globals": "^17.0.0",

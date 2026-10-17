@@ -223,7 +223,10 @@ function loadProject(): any {
 function fitStage(): void {
   const sw = window.innerWidth / ctx.SCREEN_W,
     sh = window.innerHeight / ctx.SCREEN_H;
-  const maxScale = (ctx.proj && Number(ctx.proj.system.screenScale)) || 1.6;
+  const nativeHostScale = (window as any).RPGATLAS_NATIVE_HOST?.scaleToFit === true;
+  const maxScale = nativeHostScale
+    ? Number.POSITIVE_INFINITY
+    : (ctx.proj && Number(ctx.proj.system.screenScale)) || 1.6;
   const sc = Math.min(sw, sh, maxScale);
   ctx.stage.style.transform = "translate(-50%,-50%) scale(" + sc + ")";
 }

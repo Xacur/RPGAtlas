@@ -34,3 +34,8 @@ dist/
 /test-results/
 /playwright-report/
 /blob-report/
+
+# Electron POC and native game packaging output
+electron-poc/out/
+electron-poc/build/
+electron-poc/dist/

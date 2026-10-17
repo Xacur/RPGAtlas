@@ -1,0 +1,14 @@
+{
+  "name": "rpgatlas-electron-poc",
+  "private": true,
+  "version": "0.1.0",
+  "main": "out/main.cjs",
+  "scripts": {
+    "build:linux": "electron-builder --linux AppImage --config electron-builder.yml",
+    "build:win": "electron-builder --win portable --config electron-builder.yml"
+  },
+  "devDependencies": {
+    "electron": "44.8.0",
+    "electron-builder": "26.15.3"
+  }
+}

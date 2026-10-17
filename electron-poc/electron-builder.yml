@@ -1,0 +1,20 @@
+appId: com.rpgatlas.electron.poc
+productName: Atlas Quest Electron POC
+
+directories:
+  output: dist
+files:
+  - out/**
+  - icon.ico
+linux:
+  executableName: atlas-quest-electron
+  desktopName: atlas-quest-electron
+  syncDesktopName: true
+  target:
+    - AppImage
+  category: Game
+  artifactName: Atlas-Quest-Electron-${version}.${ext}
+win:
+  target:
+    - portable
+  artifactName: Atlas-Quest-Electron-${version}.${ext}
