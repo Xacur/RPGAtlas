@@ -4,6 +4,17 @@
 
 export const PATCH_NOTES = [
   {
+    date: "October 16, 2026",
+    title: "Linux desktop and AppImage packaging",
+    summary:
+      "Adds the Linux application icon and a fresh, one-command x86_64 AppImage build that works around Arch linuxdeploy stripping incompatibility while preserving other Tauri package targets.",
+    items: [
+      "Added a 256×256 PNG icon derived from the existing RPGAtlas artwork.",
+      "Added npm run tauri:appimage with stale-output cleanup, Tauri tool download guidance, and final artifact verification.",
+      "Documented Linux prerequisites, automatic Tauri packaging-tool downloads, and the RPGAtlas-x86_64.AppImage output path.",
+    ],
+  },
+  {
     date: "August 2, 2026",
     version: "2.1.0",
     title: "Move routes, dice damage, and a condition builder you can read",

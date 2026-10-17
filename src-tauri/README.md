@@ -28,7 +28,12 @@ not a replacement.
 - **Platform WebView + build tools:**
   - Windows: WebView2 runtime (preinstalled on Win 10/11) + MSVC Build Tools.
   - macOS: Xcode Command Line Tools.
-  - Linux: `webkit2gtk` and related dev packages (see Tauri prerequisites).
+  - Linux: Rust, Node.js, `webkit2gtk` 4.1, GTK 3, librsvg, and the Tauri Linux prerequisites.
+    The AppImage command downloads Tauri's `linuxdeploy`, AppImage plugin, and AppImage runtime into
+    the user's Tauri cache when they are not already present, so a clean checkout needs network access.
+    On Arch/current rolling distributions the wrapper reruns the downloaded tools with `NO_STRIP=1`
+    because their bundled strip utility cannot process newer RELR ELF sections.
+
 
 ## Develop / build
 
@@ -37,8 +42,12 @@ Run from the repository root:
 ```sh
 npm install          # one-time: fetches @tauri-apps/cli
 npm run dev          # live desktop app (stages frontend, then tauri dev)
-npm run build        # produces an installer in src-tauri/target/release/bundle
+npm run build        # produces all configured installers in src-tauri/target/release/bundle
+npm run tauri:appimage # Linux x86_64 AppImage; downloads missing Tauri tools automatically
 npm run package:exe  # rebuilds the standalone RPGAtlas-Desktop.exe at the repo root
+
+# Linux AppImage output: RPGAtlas-x86_64.AppImage in the repository root.
+# The command removes that output and the AppDir before each build, and exits nonzero on errors.
 ```
 
 To refresh the desktop app after adding features, run `npm run package:exe`
