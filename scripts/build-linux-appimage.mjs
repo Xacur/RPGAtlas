@@ -22,6 +22,7 @@ const configArg = process.env.RPGATLAS_TAURI_CONFIG ? ["--config", process.env.R
 const appBinary = join(appDir, "usr", "bin", "rpgatlas");
 const linuxdeploy = join(cache, "linuxdeploy-x86_64.AppImage");
 const appimagePlugin = join(cache, "linuxdeploy-plugin-appimage.AppImage");
+const appimageRuntime = join(cache, "runtime-x86_64");
 const gstreamerPlugin = join(cache, "linuxdeploy-plugin-gstreamer.sh");
 
 function run(file, args, options = {}) {
@@ -88,6 +89,12 @@ if (!existsSync(linuxdeploy) || !existsSync(appimagePlugin)) {
 if (!existsSync(gstreamerPlugin)) {
   throw new Error("Tauri did not download linuxdeploy-plugin-gstreamer.sh into " + cache + ". Re-run with network access.");
 }
+if (!existsSync(appimageRuntime)) {
+  throw new Error("Cached AppImage runtime is missing: " + appimageRuntime + ". Place runtime-x86_64 there before rebuilding.");
+}
+if (!existsSync(appimagePlugin)) {
+  throw new Error("Cached linuxdeploy AppImage plugin is missing: " + appimagePlugin);
+}
 
 const gstDir = join(appDir, "usr", "lib", "gstreamer-1.0");
 mkdirSync(gstDir, { recursive: true });
@@ -110,5 +117,15 @@ writeFileSync(join(appDir, "apprun-hooks", "rpgatlas-gstreamer.sh"),
 run(appimagePlugin, ["--appdir", appDir], {
   env: { ...process.env, NO_STRIP: "1" },
 });
+// The plugin itself delegates to appimagetool without exposing its arguments.
+// Extract its bundled appimagetool, then invoke that tool directly so the
+// cached type-2 runtime can be supplied explicitly.
+const pluginExtract = join(cache, ".linuxdeploy-plugin-appimage-extract");
+rmSync(pluginExtract, { recursive: true, force: true });
+mkdirSync(pluginExtract, { recursive: true });
+execFileSync(appimagePlugin, ["--appimage-extract"], { cwd: pluginExtract, stdio: "inherit" });
+const appimageTool = join(pluginExtract, "squashfs-root", "usr", "bin", "appimagetool");
+if (!existsSync(appimageTool)) throw new Error("AppImage plugin did not contain appimagetool: " + appimageTool);
+run(appimageTool, ["--runtime-file", appimageRuntime, appDir, output], { env: process.env });
 publishOutput();
 console.log("[appimage] wrote " + output);

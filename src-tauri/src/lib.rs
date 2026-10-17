@@ -20,6 +20,7 @@ mod project_paths;
 // Project Harbor (H5·A/H5·B): launch-from-a-project plumbing — capture the initial
 // argv path + the take_launch_path command, plus the single-instance open event.
 mod launch;
+mod electron_packager;
 
 /// Choose the destination for a native Electron game export.
 #[tauri::command]
@@ -33,27 +34,11 @@ async fn choose_electron_export(app: tauri::AppHandle, target: String, suggested
 
 /// Package the current project in the background after the destination is chosen.
 #[tauri::command]
-async fn package_electron_game(json: String, target: String, path: String) -> Result<String, String> {
-    if target != "linux" && target != "win" { return Err("Unsupported Electron target".into()); }
-    let root = std::env::current_dir().map_err(|e| e.to_string())?;
-    let project = root.join(format!(".rpgatlas-electron-export-{}.json", std::process::id()));
-    std::fs::write(&project, json).map_err(|e| e.to_string())?;
-    let target_for_task = target.clone();
-    let project_for_task = project.clone();
-    let path_for_task = path.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || {
-        let project_arg = project_for_task.to_string_lossy().into_owned();
-        let path_arg = path_for_task.to_string();
-        let status = std::process::Command::new("npm")
-            .current_dir(&root)
-            .args(["run", "package:electron:game", "--", project_arg.as_str(), "--target", target_for_task.as_str(), "--out", path_arg.as_str()])
-            .status().map_err(|e| e.to_string())?;
-        if !status.success() { return Err(format!("Electron export failed with status {}", status)); }
-        Ok::<(), String>(())
-    }).await.map_err(|e| e.to_string())?;
-    let _ = std::fs::remove_file(&project);
-    result?;
-    Ok(path)
+async fn package_electron_game(app: tauri::AppHandle, json: String, html: String, target: String, path: String) -> Result<String, String> {
+    if target == "win" { electron_packager::package_windows_game(&app, json, html, path.clone()).map(|_| path).map_err(|e| e) }
+    else if target != "linux" { return Err("Unsupported Electron target".into()); }
+    else { return Err("Linux native packager is not yet installed-editor ready".into()); }
+
 }
 
 #[tauri::command]

@@ -1,0 +1,53 @@
+/* Experimental generic Windows Electron + NSIS exporter. */
+import { execFileSync } from "node:child_process";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { STANDALONE_EXPORT_FILES, PLAYER_BUNDLE_FILE } from "../js/build-manifest.mjs";
+import { assembleStandaloneHtml, safeFileName } from "../js/standalone-template.mjs";
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const project = JSON.parse(readFileSync(resolve(process.argv[2] || "Atlas_Quest.json"), "utf8"));
+const output = resolve(process.argv[3] || `electron-poc/dist/${safeFileName(project.system?.title, "RPGAtlas_Game")}-NSIS-Portable.exe`);
+if (project?.meta?.engine !== "rpgatlas") throw new Error("Not an RPGAtlas project");
+const title = project.system?.title || "RPGAtlas Game";
+const base = safeFileName(title, "RPGAtlas_Game");
+const build = join(root, "electron-poc", "nsis-input-generic");
+const input = join(root, "electron-poc", "dist", "nsis-input");
+const bundle = join(root, "dist", PLAYER_BUNDLE_FILE);
+const source = join(root, "electron-poc", "generic-runner-dist", "win-unpacked");
+if (!existsSync(bundle)) throw new Error("Missing dist/player-bundle.js; prepare the standalone payload first.");
+if (!existsSync(source)) throw new Error("Missing generic runner template; run scripts/prepare-electron-generic-runner.mjs first.");
+const exeCandidates = readdirSync(source).filter((name) => name.toLowerCase().endsWith(".exe") && name.toLowerCase() !== "elevate.exe");
+if (exeCandidates.length !== 1) throw new Error("Expected exactly one Electron application executable in win-unpacked; found: " + exeCandidates.join(", "));
+const templateExe = exeCandidates[0];
+rmSync(input, { recursive: true, force: true }); mkdirSync(input, { recursive: true });
+const files = STANDALONE_EXPORT_FILES.map((rel) => rel === PLAYER_BUNDLE_FILE ? readFileSync(bundle, "utf8") : readFileSync(join(root, rel), "utf8"));
+const game = assembleStandaloneHtml(project, files, [], `data:image/png;base64,${readFileSync(join(root, "img/system/icon_set.png")).toString("base64")}`);
+const gameDir = join(input, "resources", "game");
+mkdirSync(gameDir, { recursive: true });
+writeFileSync(join(gameDir, "game.html"), game.html);
+writeFileSync(join(gameDir, "project.json"), JSON.stringify(project));
+const projectIcon = join(root, "img/system/rpgatlas.ico");
+if (existsSync(projectIcon)) copyFileSync(projectIcon, join(gameDir, "icon.ico"));
+for (const entry of readdirSync(source)) {
+  if (entry === "resources" || entry === templateExe || entry === "locales") continue;
+  const src = join(source, entry); const dst = join(input, entry);
+  if (statSync(src).isDirectory()) execFileSync("cp", ["-a", src, dst]); else copyFileSync(src, dst);
+}
+copyFileSync(join(source, templateExe), join(input, `${base}.exe`));
+copyFileSync(join(source, "resources", "app.asar"), join(input, "resources-app.asar"));
+mkdirSync(join(input, "resources"), { recursive: true }); copyFileSync(join(input, "resources-app.asar"), join(input, "resources", "app.asar"));
+const nsi = join(build, "portable.nsi"); mkdirSync(build, { recursive: true });
+const makensis = process.env.MAKENSIS || (process.platform === "win32" ? "makensis.exe" : "");
+if (!makensis) throw new Error("Set MAKENSIS to makensis.exe on Linux (run it with Wine), or run this script on Windows with makensis.exe on PATH.");
+const nativeNsis = process.platform !== "win32" && makensis.includes("/linux/");
+const inputForCompiler = nativeNsis ? input : input.replace(/^\/home\//, "Z:\\home\\").replace(/\//g, "\\");
+const outputForCompiler = nativeNsis ? output : output.replace(/^\/home\//, "Z:\\home\\").replace(/\//g, "\\");
+const filePattern = nativeNsis ? `${inputForCompiler}/*` : `${inputForCompiler}\\*.*`;
+writeFileSync(nsi, `Unicode true\nRequestExecutionLevel user\nName "${base}"\nOutFile "${outputForCompiler}"\nSilentInstall silent\nAutoCloseWindow true\nFunction .onInit\nInitPluginsDir\nSetOutPath "$PLUGINSDIR\\Game"\nFile /r "${filePattern}"\nFunctionEnd\nSection\nSetOutPath "$PLUGINSDIR\\Game"\nExecWait '"$PLUGINSDIR\\Game\\${base}.exe"'\nSectionEnd\nFunction .onInstSuccess\nRMDir /r "$PLUGINSDIR\\Game"\nFunctionEnd\n`);
+const nsiForCompiler = process.platform === "win32" ? nsi : nsi.replace(/\\/g, "/");
+const compilerScript = nativeNsis ? nsiForCompiler : nsiForCompiler.replace(/^\/home\//, "Z:\\home\\").replace(/\//g, "\\");
+execFileSync(makensis, [compilerScript], { cwd: root, stdio: "inherit" });
+if (!existsSync(output) || statSync(output).size === 0) throw new Error("NSIS produced no output: " + output);
+console.log(`[nsis-poc] wrote ${output} (${statSync(output).size} bytes); runner=${templateExe}`);

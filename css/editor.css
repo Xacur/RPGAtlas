@@ -2,6 +2,9 @@
 .electron-export-progress { min-width: 260px; text-align: center; padding: 8px 4px 12px; }
 .electron-export-target { color: var(--muted, #9aa3b7); margin-bottom: 14px; }
 .electron-export-message { margin-top: 14px; color: var(--text, #f0f2f8); }
+.electron-export-cache-note { margin-top: 8px; opacity: .65; font-size: .85em; }
+.electron-export-download-track { height: 4px; margin: 12px 24px 0; background: rgba(255,255,255,.12); border-radius: 3px; overflow: hidden; }
+.electron-export-download { height: 100%; width: 0; background: var(--accent, #72b7ff); transition: width .15s linear; }
 .electron-export-success-icon, .electron-export-error-icon { font-size: 34px; font-weight: 700; }
 .electron-export-success-icon { color: #75d69a; }
 .electron-export-error-icon { color: #ff8c8c; }

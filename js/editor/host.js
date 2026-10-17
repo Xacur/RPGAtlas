@@ -46,11 +46,14 @@ export function chooseElectronExport(target, suggested) {
 }
 
 /** Package the already-selected native Electron export destination. */
-export function packageElectronGame(project, target, path) {
-  return invoke("package_electron_game", { json: JSON.stringify(project), target, path });
+export function packageElectronGame(project, target, path, html) {
+  return invoke("package_electron_game", { json: JSON.stringify(project), html, target, path });
 }
 export function revealExportFolder(path) {
   return invoke("reveal_export_folder", { path });
+}
+export function onElectronExportProgress(callback) {
+  return tauri.event.listen("rpgatlas://electron-export-progress", callback);
 }
 
 /** Save generated binary/text export bytes through the native desktop dialog. */

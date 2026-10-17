@@ -407,11 +407,22 @@ const projectRepo = new BrowserProjectRepository(
       content: h("div", { class: "electron-export-progress" },
         h("div", { class: "electron-export-target" }, label),
         h("div", { class: "electron-export-spinner", "aria-label": "Packaging game" }),
-        h("div", { class: "electron-export-message" }, "Packaging game…")),
+        h("div", { class: "electron-export-download-track" }, h("div", { class: "electron-export-download" })),
+        h("div", { class: "electron-export-message" }, "Checking export components…"),
+        h("div", { class: "electron-export-cache-note" }, "Windows export components download once and are reused.")),
+
       dismissable: false,
       buttons: [],
     });
     const body = progress.body;
+    const update = (p: any) => {
+      const msg = p && p.payload ? p.payload : p;
+      if (!msg) return;
+      const label = msg.stage === "downloading" && msg.total ? `Downloading Windows runtime… ${(Number(msg.received || 0) / 1048576).toFixed(1)} / ${(Number(msg.total) / 1048576).toFixed(1)} MB` : (msg.message || "Packaging game…");
+      const el = body.querySelector(".electron-export-message"); if (el) el.textContent = label;
+      const bar = body.querySelector(".electron-export-download");
+      if (bar && msg.total) { (bar as HTMLElement).style.width = Math.min(100, Number(msg.received || 0) / Number(msg.total) * 100) + "%"; }
+    };
     const finish = (ok: boolean, message: string, outputPath?: string) => {
       body.innerHTML = "";
       body.appendChild(h("div", { class: ok ? "electron-export-success-icon" : "electron-export-error-icon" }, ok ? "✓" : "!"));
@@ -423,8 +434,11 @@ const projectRepo = new BrowserProjectRepository(
       body.appendChild(buttons);
     };
     electronExportBusy = true;
+    let stopProgress: any = null;
     try {
-      const result = await host.packageElectronGame(S.proj, target, path);
+      stopProgress = await host.onElectronExportProgress(update);
+      const game = await buildStandaloneGame(S.proj, assetsWithAudio);
+      const result = await host.packageElectronGame(S.proj, target, path, game.html);
       finish(true, "Export completed", result);
       flashStatus("Electron game exported to " + result.split(/[\\/]/).pop());
       return result;
@@ -432,6 +446,7 @@ const projectRepo = new BrowserProjectRepository(
       finish(false, "Export failed: " + ((e && e.message) || e));
       throw e;
     } finally {
+      if (stopProgress) await stopProgress();
       electronExportBusy = false;
     }
   }
@@ -454,10 +469,10 @@ const projectRepo = new BrowserProjectRepository(
       try { await writeWindowsExecutable(S.proj, assetsWithAudio); close(); flashStatus("Windows game executable exported"); } catch (e: any) { alert("Game export failed: " + e.message); }
     }, true);
     choice("Windows Native (Electron)", "Own game window", async (close) => {
-      try { await exportElectronGameFile("win"); } catch (e: any) { alert("Electron export failed: " + e.message); }
+      try { await exportElectronGameFile("win"); } catch (e: any) { alert("Electron export failed: " + ((e && e.message) || String(e))); }
     });
     choice("Linux AppImage (Electron)", "Own game window", async (close) => {
-      try { await exportElectronGameFile("linux"); } catch (e: any) { alert("Electron export failed: " + e.message); }
+      try { await exportElectronGameFile("linux"); } catch (e: any) { alert("Electron export failed: " + ((e && e.message) || String(e))); }
     });
     choice("Standalone HTML", "One browser file", async (close) => {
       try { await writeStandaloneHtml(S.proj, assetsWithAudio); close(); flashStatus("Standalone HTML game exported"); } catch (e: any) { alert("Game export failed: " + e.message); }

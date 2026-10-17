@@ -39,3 +39,13 @@ dist/
 electron-poc/out/
 electron-poc/build/
 electron-poc/dist/
+electron-poc/export-resources/
+electron-poc/generic-runner-app/
+electron-poc/generic-runner-dist/
+electron-poc/bundle-test-input/
+electron-poc/nsis-input-generic/
+electron-poc/node_modules/
+
+
+# Generated Linux AppImages
+*.AppImage
