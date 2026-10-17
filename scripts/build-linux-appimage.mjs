@@ -6,7 +6,7 @@
    removed first so recovery can never reuse stale build artifacts. */
 
 import { execFileSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, readdirSync, rmSync, statSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
@@ -19,6 +19,7 @@ const bundledOutput = join(bundleDir, "RPGAtlas-x86_64.AppImage");
 const appBinary = join(appDir, "usr", "bin", "rpgatlas");
 const linuxdeploy = join(cache, "linuxdeploy-x86_64.AppImage");
 const appimagePlugin = join(cache, "linuxdeploy-plugin-appimage.AppImage");
+const gstreamerPlugin = join(cache, "linuxdeploy-plugin-gstreamer.sh");
 
 function run(file, args, options = {}) {
   execFileSync(file, args, { cwd: root, stdio: "inherit", ...options });
@@ -76,10 +77,28 @@ if (!recovered) {
 if (!existsSync(linuxdeploy) || !existsSync(appimagePlugin)) {
   throw new Error("Tauri did not download its linuxdeploy tools into " + cache + ". Re-run with network access.");
 }
+if (!existsSync(gstreamerPlugin)) {
+  throw new Error("Tauri did not download linuxdeploy-plugin-gstreamer.sh into " + cache + ". Re-run with network access.");
+}
 
+const gstDir = join(appDir, "usr", "lib", "gstreamer-1.0");
+mkdirSync(gstDir, { recursive: true });
+for (const name of ["libgstapp.so", "libgstautodetect.so", "libgstpulseaudio.so", "libgstpipewire.so", "libgstalsa.so", "libgstaudioconvert.so", "libgstaudioresample.so", "libgstcoreelements.so"]) {
+  const source = join("/usr/lib/gstreamer-1.0", name);
+  if (!existsSync(source)) throw new Error("Required host GStreamer plugin is missing: " + source);
+  copyFileSync(source, join(gstDir, name));
+}
+copyFileSync("/usr/lib/gstreamer-1.0/gst-plugin-scanner", join(gstDir, "gst-plugin-scanner"));
+copyFileSync("/usr/lib/gstreamer-1.0/gst-ptp-helper", join(gstDir, "gst-ptp-helper"));
 run(linuxdeploy, ["--appdir", appDir, "--verbosity", "1"], {
   env: { ...process.env, NO_STRIP: "1" },
 });
+mkdirSync(join(appDir, "apprun-hooks"), { recursive: true });
+writeFileSync(join(appDir, "apprun-hooks", "rpgatlas-gstreamer.sh"),
+  "export GST_REGISTRY_REUSE_PLUGIN_SCANNER=no\n" +
+  "export GST_PLUGIN_SYSTEM_PATH_1_0=\\\"${APPDIR}/usr/lib/gstreamer-1.0\\\"\n" +
+  "export GST_PLUGIN_PATH_1_0=\\\"${APPDIR}/usr/lib/gstreamer-1.0\\\"\n" +
+  "export GST_PLUGIN_SCANNER_1_0=\\\"${APPDIR}/usr/lib/gstreamer-1.0/gst-plugin-scanner\\\"\n");
 run(appimagePlugin, ["--appdir", appDir], {
   env: { ...process.env, NO_STRIP: "1" },
 });
