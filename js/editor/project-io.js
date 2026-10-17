@@ -131,12 +131,22 @@ async function fetchDataUrl(path) {
   return blobDataUrl(await response.blob());
 }
 
-export function downloadBlob(blob, fileName) {
+export async function downloadBlob(blob, fileName) {
+  if (globalThis.__RPGATLAS_TAURI_SAVE_EXPORT__) {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = "";
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+    const path = await globalThis.__RPGATLAS_TAURI_SAVE_EXPORT__(fileName, btoa(binary));
+    if (path) return path;
+    return null;
+  }
   const anchor = document.createElement("a");
   anchor.href = URL.createObjectURL(blob);
   anchor.download = fileName;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(anchor.href), 5000);
+  return fileName;
 }
 
 async function saveBlobWithPicker(blob, fileName) {
@@ -173,8 +183,8 @@ export async function exportProjectFile(project) {
     if (error && error.name === "AbortError") return { cancelled: true, fileName };
     throw error;
   }
-  downloadBlob(blob, fileName);
-  return { method: "download", fileName };
+  const saved = await downloadBlob(blob, fileName);
+  return saved ? { method: "download", fileName: saved } : { cancelled: true, fileName };
 }
 
 export async function buildStandaloneGame(project, Assets) {
@@ -192,7 +202,7 @@ export async function buildStandaloneGame(project, Assets) {
 
 export async function exportStandaloneHtml(project, Assets) {
   const game = await buildStandaloneGame(project, Assets);
-  downloadBlob(new Blob([game.html], { type: "text/html;charset=utf-8" }), game.baseName + ".html");
+  await downloadBlob(new Blob([game.html], { type: "text/html;charset=utf-8" }), game.baseName + ".html");
 }
 
 export async function exportWindowsExecutable(project, Assets) {
@@ -206,7 +216,7 @@ export async function exportWindowsExecutable(project, Assets) {
 
   const marker = new TextEncoder().encode("RPGATLAS_GAME_PAYLOAD_V1\n");
   const payload = new TextEncoder().encode(game.html);
-  downloadBlob(
+  await downloadBlob(
     new Blob([await launcherResponse.arrayBuffer(), marker, payload],
       { type: "application/vnd.microsoft.portable-executable" }),
     game.baseName + ".exe",

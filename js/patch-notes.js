@@ -4,6 +4,17 @@
 
 export const PATCH_NOTES = [
   {
+    date: "October 17, 2026",
+    title: "Electron native game export integration",
+    summary:
+      "Adds Windows Native (Electron) and Linux AppImage (Electron) exports to the desktop editor and build console using the shared Electron packaging backend.",
+    items: [
+      "File ▸ Export Standalone Game now offers Windows Native (Electron) and Linux AppImage (Electron).",
+      "Added build windows and build linux console commands with current-project export and native destination selection.",
+      "Existing browser launcher, standalone HTML, web ZIP, Tauri editor, and Tauri export paths remain available.",
+    ],
+  },
+  {
     date: "October 16, 2026",
     title: "Native Linux game AppImage packaging",
     summary:

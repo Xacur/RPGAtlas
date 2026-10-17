@@ -21,6 +21,61 @@ mod project_paths;
 // argv path + the take_launch_path command, plus the single-instance open event.
 mod launch;
 
+/// Choose the destination for a native Electron game export.
+#[tauri::command]
+async fn choose_electron_export(app: tauri::AppHandle, target: String, suggested: String) -> Result<Option<String>, String> {
+    if target != "linux" && target != "win" { return Err("Unsupported Electron target".into()); }
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.dialog().file().set_file_name(format!("{}-Electron.{}", suggested, if target == "linux" { "AppImage" } else { "exe" }))
+        .save_file(move |picked| { let _ = tx.send(picked); });
+    Ok(match rx.recv().map_err(|e| e.to_string())? { Some(file) => Some(file.into_path().map_err(|e| e.to_string())?.to_string_lossy().into_owned()), None => None })
+}
+
+/// Package the current project in the background after the destination is chosen.
+#[tauri::command]
+async fn package_electron_game(json: String, target: String, path: String) -> Result<String, String> {
+    if target != "linux" && target != "win" { return Err("Unsupported Electron target".into()); }
+    let root = std::env::current_dir().map_err(|e| e.to_string())?;
+    let project = root.join(format!(".rpgatlas-electron-export-{}.json", std::process::id()));
+    std::fs::write(&project, json).map_err(|e| e.to_string())?;
+    let target_for_task = target.clone();
+    let project_for_task = project.clone();
+    let path_for_task = path.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let project_arg = project_for_task.to_string_lossy().into_owned();
+        let path_arg = path_for_task.to_string();
+        let status = std::process::Command::new("npm")
+            .current_dir(&root)
+            .args(["run", "package:electron:game", "--", project_arg.as_str(), "--target", target_for_task.as_str(), "--out", path_arg.as_str()])
+            .status().map_err(|e| e.to_string())?;
+        if !status.success() { return Err(format!("Electron export failed with status {}", status)); }
+        Ok::<(), String>(())
+    }).await.map_err(|e| e.to_string())?;
+    let _ = std::fs::remove_file(&project);
+    result?;
+    Ok(path)
+}
+
+#[tauri::command]
+fn reveal_export_folder(path: String) -> Result<(), String> {
+    let p = std::path::PathBuf::from(path);
+    let dir = if p.is_dir() { p } else { p.parent().unwrap_or(std::path::Path::new(".")).to_path_buf() };
+    reveal_path(&dir)
+}
+
+/// Save generated export bytes through a native asynchronous dialog.
+#[tauri::command]
+async fn save_export_file(app: tauri::AppHandle, file_name: String, bytes_base64: String) -> Result<Option<String>, String> {
+    use base64::Engine as _;
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.dialog().file().set_file_name(file_name).save_file(move |picked| { let _ = tx.send(picked); });
+    let picked = rx.recv().map_err(|e| e.to_string())?;
+    let path = match picked { Some(file) => file.into_path().map_err(|e| e.to_string())?, None => return Ok(None) };
+    let bytes = base64::engine::general_purpose::STANDARD.decode(bytes_base64).map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || std::fs::write(&path, bytes).map(|_| Some(path.to_string_lossy().into_owned())).map_err(|e| e.to_string()))
+        .await.map_err(|e| e.to_string())?
+}
+
 /// Save the editor's project JSON to a user-chosen file. Returns the chosen
 /// path, or `None` if the user cancelled the dialog.
 #[tauri::command]
@@ -529,6 +584,10 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            choose_electron_export,
+            package_electron_game,
+            save_export_file,
+            reveal_export_folder,
             save_project,
             save_project_to_path,
             open_project,

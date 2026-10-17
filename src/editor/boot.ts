@@ -13,6 +13,7 @@ import {
   Assets, DataDefaults, RA, TILE, editorI18n, editorState as S, editorHooks,
 } from "./editor-state";
 import { $ } from "./dom";
+import * as host from "../../js/editor/host.js";
 import { modalRoot } from "./modals";
 import { loadStored, saveNow, importProject, openFolderRoot } from "./persistence";
 import { renderMap, renderPalette } from "./map-editor/map-render";
@@ -153,6 +154,9 @@ export function rebuildAll() {
 // localStorage-or-default source for the browser build and the no-manager path.
 export async function bootWithProject(project: any) {
   S.proj = project;
+  if (host.isTauri) {
+    (globalThis as any).__RPGATLAS_TAURI_SAVE_EXPORT__ = (name: string, b64: string) => host.saveExportFile(name, b64);
+  }
   // The device asset library must publish its catalog before external-asset
   // discovery runs (Phase 6); a failed store degrades to shipped-only inside
   // initAssetLibrary. Pre-strip autosaves never carry embedded assets, but a

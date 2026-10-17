@@ -40,6 +40,24 @@ export function saveProjectToPath(path, project) {
   return invoke("save_project_to_path", { path, json });
 }
 
+/** Choose the native Electron export destination without starting packaging. */
+export function chooseElectronExport(target, suggested) {
+  return invoke("choose_electron_export", { target, suggested });
+}
+
+/** Package the already-selected native Electron export destination. */
+export function packageElectronGame(project, target, path) {
+  return invoke("package_electron_game", { json: JSON.stringify(project), target, path });
+}
+export function revealExportFolder(path) {
+  return invoke("reveal_export_folder", { path });
+}
+
+/** Save generated binary/text export bytes through the native desktop dialog. */
+export function saveExportFile(fileName, bytesBase64) {
+  return invoke("save_export_file", { fileName, bytesBase64 });
+}
+
 /**
  * Open a project via a native Open dialog. Resolves to the parsed project
  * object, or null if the user cancelled.

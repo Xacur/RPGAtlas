@@ -5,7 +5,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import {
-  exportStandaloneHtmlFile, exportWebZip, exportWindowsExeFile, saveNow,
+  exportStandaloneHtmlFile, exportWebZip, exportWindowsExeFile, exportElectronGameFile, saveNow,
 } from "../persistence";
 import { registerConsoleCommand, done, fail, text } from "./registry";
 
@@ -14,6 +14,8 @@ const BUILD_HINT = [
   text("  build web    itch.io-ready .zip — installable, replayable offline", "dim"),
   text("  build html   one self-contained .html file, runs anywhere", "dim"),
   text("  build exe    Windows launcher .exe (unsigned; extracts and opens the game)", "dim"),
+  text("  build windows native Electron game window", "dim"),
+  text("  build linux   Linux Electron AppImage", "dim"),
 ];
 
 registerConsoleCommand({
@@ -51,6 +53,32 @@ registerConsoleCommand({
       text("✓ Standalone HTML built.", "ok"),
       text("One file, no server needed — send it to anyone; it opens in their browser.", "dim"),
     ], { target: "html", ok: true });
+  },
+});
+
+registerConsoleCommand({
+  name: "build windows",
+  group: "Build",
+  summary: "Export a native Windows Electron game",
+  usage: "build windows",
+  async run() {
+    saveNow();
+    try { await exportElectronGameFile("win"); }
+    catch (e: any) { return fail("Windows Electron export failed: " + ((e && e.message) || e)); }
+    return done([text("✓ Windows Electron game exported.", "ok")], { target: "windows", ok: true });
+  },
+});
+
+registerConsoleCommand({
+  name: "build linux",
+  group: "Build",
+  summary: "Export a native Linux Electron AppImage",
+  usage: "build linux",
+  async run() {
+    saveNow();
+    try { await exportElectronGameFile("linux"); }
+    catch (e: any) { return fail("Linux Electron export failed: " + ((e && e.message) || e)); }
+    return done([text("✓ Linux Electron AppImage exported.", "ok")], { target: "linux", ok: true });
   },
 });
 

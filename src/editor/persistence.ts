@@ -387,55 +387,92 @@ const projectRepo = new BrowserProjectRepository(
     ]);
     const entries = buildWebZipEntries(game.html, title, template, icon192, icon512);
     const zipBytes = buildZip(entries);
-    downloadBlob(new Blob([zipBytes as any], { type: "application/zip" }), game.baseName + "-web.zip");
+    await downloadBlob(new Blob([zipBytes as any], { type: "application/zip" }), game.baseName + "-web.zip");
   }
   // Console `build exe` / `build html` entry points — same builders the
   // Export Standalone Game dialog buttons call.
   export function exportWindowsExeFile() {
     return writeWindowsExecutable(S.proj, assetsWithAudio);
   }
+  let electronExportBusy = false;
+  export async function exportElectronGameFile(target: "linux" | "win") {
+    if (!host.isTauri) throw new Error("Native Electron export is available in the desktop editor only.");
+    if (electronExportBusy) throw new Error("An Electron export is already in progress.");
+    const suggested = (S.proj.system.title || "RPGAtlas_Game").replace(/[^\w\- ]+/g, "").trim().replace(/ +/g, "_") || "RPGAtlas_Game";
+    const path = await host.chooseElectronExport(target, suggested);
+    if (!path) return null;
+    const label = target === "linux" ? "Linux AppImage (Electron)" : "Windows Native (Electron)";
+    const progress = modal({
+      title: "Exporting " + (S.proj.system.title || "Game"),
+      content: h("div", { class: "electron-export-progress" },
+        h("div", { class: "electron-export-target" }, label),
+        h("div", { class: "electron-export-spinner", "aria-label": "Packaging game" }),
+        h("div", { class: "electron-export-message" }, "Packaging game…")),
+      dismissable: false,
+      buttons: [],
+    });
+    const body = progress.body;
+    const finish = (ok: boolean, message: string, outputPath?: string) => {
+      body.innerHTML = "";
+      body.appendChild(h("div", { class: ok ? "electron-export-success-icon" : "electron-export-error-icon" }, ok ? "✓" : "!"));
+      body.appendChild(h("div", { class: "electron-export-message" }, message));
+      if (outputPath) body.appendChild(h("div", { class: "electron-export-file" }, outputPath.split(/[\\/]/).pop()));
+      const buttons = h("div", { class: "electron-export-actions" });
+      if (ok && outputPath) buttons.appendChild(h("button", { onclick: () => host.revealExportFolder(outputPath) }, "Open Folder"));
+      buttons.appendChild(h("button", { class: "primary", onclick: () => progress.close() }, "Close"));
+      body.appendChild(buttons);
+    };
+    electronExportBusy = true;
+    try {
+      const result = await host.packageElectronGame(S.proj, target, path);
+      finish(true, "Export completed", result);
+      flashStatus("Electron game exported to " + result.split(/[\\/]/).pop());
+      return result;
+    } catch (e: any) {
+      finish(false, "Export failed: " + ((e && e.message) || e));
+      throw e;
+    } finally {
+      electronExportBusy = false;
+    }
+  }
   export function exportStandaloneHtmlFile() {
     return writeStandaloneHtml(S.proj, assetsWithAudio);
   }
   export function openStandaloneExport() {
-    const content = h("div", null,
-      h("p", null, "Build the current project as one self-contained game file. The editor, engine folder, web server, and project .json are not required."),
-      h("p", null, "Windows EXE includes a small launcher that extracts the game and opens it in the player's default browser. Standalone HTML works across platforms. Web (.zip) is ready to upload to itch.io or any static host — players can install it as an app and replay offline."),
-      h("p", { class: "dim" }, "The launcher is unsigned, so Windows may show a security warning. Save slots are kept in the player's browser. A fully native desktop EXE (no browser) can be built from the repo with: node scripts/package-game-exe.mjs <project.json> (needs the Rust toolchain)."),
+    const content = h("div", { class: "standalone-export-content" },
+      h("p", null, "Choose a format for the current project. Native Electron games run in their own window; Windows EXE opens the game in the player's browser."),
+      h("p", { class: "dim" }, "HTML runs in a browser. Web ZIP is ready for itch.io or any static host."),
     );
-    modal({
+    const exportChoices = h("div", { class: "standalone-export-choices" });
+    const choice = (label: string, description: string, onClick: (close: any) => void, primary = false) => {
+      const button = h("button", { class: "standalone-export-choice" + (primary ? " primary" : ""), type: "button", onclick: () => onClick(() => modalRef.close()) },
+        h("strong", null, label), h("span", null, description));
+      exportChoices.appendChild(button);
+    };
+    let modalRef: any;
+    choice("Windows EXE", "Browser launcher", async (close) => {
+      try { await writeWindowsExecutable(S.proj, assetsWithAudio); close(); flashStatus("Windows game executable exported"); } catch (e: any) { alert("Game export failed: " + e.message); }
+    }, true);
+    choice("Windows Native (Electron)", "Own game window", async (close) => {
+      try { await exportElectronGameFile("win"); } catch (e: any) { alert("Electron export failed: " + e.message); }
+    });
+    choice("Linux AppImage (Electron)", "Own game window", async (close) => {
+      try { await exportElectronGameFile("linux"); } catch (e: any) { alert("Electron export failed: " + e.message); }
+    });
+    choice("Standalone HTML", "One browser file", async (close) => {
+      try { await writeStandaloneHtml(S.proj, assetsWithAudio); close(); flashStatus("Standalone HTML game exported"); } catch (e: any) { alert("Game export failed: " + e.message); }
+    });
+    choice("Web / itch.io (.zip)", "Host or install as a web app", async (close) => {
+      try { await exportWebZip(); close(); flashStatus("Web game zip exported (itch.io-ready, offline-capable)"); } catch (e: any) { alert("Game export failed: " + e.message); }
+    });
+    content.appendChild(exportChoices);
+    modalRef = modal({
       title: "Export Standalone Game",
       content,
-      buttons: [
-        { label: "Windows EXE", primary: true, async onClick(close: any) {
-          try {
-            await writeWindowsExecutable(S.proj, assetsWithAudio);
-            close();
-            flashStatus("Windows game executable exported");
-          } catch (e: any) {
-            alert("Game export failed: " + e.message);
-          }
-        } },
-        { label: "Standalone HTML", async onClick(close: any) {
-          try {
-            await writeStandaloneHtml(S.proj, assetsWithAudio);
-            close();
-            flashStatus("Standalone HTML game exported");
-          } catch (e: any) {
-            alert("Game export failed: " + e.message);
-          }
-        } },
-        { label: "Web / itch.io (.zip)", async onClick(close: any) {
-          try {
-            await exportWebZip();
-            close();
-            flashStatus("Web game zip exported (itch.io-ready, offline-capable)");
-          } catch (e: any) {
-            alert("Game export failed: " + e.message);
-          }
-        } },
-        { label: "Cancel" },
-      ],
+      footer: h("div", { class: "standalone-export-footer" },
+        h("button", { class: "standalone-export-cancel", type: "button", onclick: () => modalRef.close() }, "Cancel")),
+      class: "standalone-export-modal",
+      buttons: [],
     });
   }
   export function importProject(file: any) {

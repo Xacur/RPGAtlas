@@ -1,4 +1,22 @@
 /* RPGAtlas — editor.css — GPL-3.0-or-later (see LICENSE) */
+.electron-export-progress { min-width: 260px; text-align: center; padding: 8px 4px 12px; }
+.electron-export-target { color: var(--muted, #9aa3b7); margin-bottom: 14px; }
+.electron-export-message { margin-top: 14px; color: var(--text, #f0f2f8); }
+.electron-export-success-icon, .electron-export-error-icon { font-size: 34px; font-weight: 700; }
+.electron-export-success-icon { color: #75d69a; }
+.electron-export-error-icon { color: #ff8c8c; }
+.electron-export-file { margin-top: 8px; word-break: break-all; color: var(--muted, #9aa3b7); }
+.electron-export-actions { display: flex; justify-content: center; gap: 10px; margin-top: 18px; }
+.electron-export-spinner { width: 30px; height: 30px; margin: 0 auto; border: 3px solid rgba(255,255,255,.18); border-top-color: var(--accent, #72b7ff); border-radius: 50%; animation: electron-export-spin .8s linear infinite; }
+@keyframes electron-export-spin { to { transform: rotate(360deg); } }
+.standalone-export-content { max-width: 560px; }
+.standalone-export-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+.standalone-export-choice { min-height: 62px; padding: 10px 12px; text-align: left; display: flex; flex-direction: column; gap: 4px; }
+.standalone-export-choice span { opacity: .72; font-size: .9em; }
+.standalone-export-modal .standalone-export-footer { display: flex; justify-content: flex-end; padding: 14px 18px 16px; margin-top: 14px; border-top: 1px solid rgba(255,255,255,.12); }
+.standalone-export-modal .standalone-export-cancel { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.22); color: inherit; min-width: 86px; }
+.standalone-export-modal .standalone-export-cancel:hover { background: rgba(255,255,255,.14); }
+@media (max-width: 560px) { .standalone-export-choices { grid-template-columns: 1fr; } }
 :root {
   /* atlas theme: ink navy base, chart blue actions, compass gold accents */
   --accent: #34608c;          /* chart blue — primary actions & selections */
